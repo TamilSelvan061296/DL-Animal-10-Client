@@ -3,8 +3,88 @@ import uvicorn
 import numpy as np
 import requests
 import io
+from fastapi.responses import HTMLResponse
 
 app = FastAPI()
+
+@app.get("/", response_class=HTMLResponse)
+async def main():
+    content = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Animal-10 Classifier</title>
+        <style>
+            body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 40px; }
+            .container { background: #fff; padding: 30px 40px; border-radius: 8px; max-width: 400px; margin: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1);}
+            h2 { text-align: center; }
+            #preview { display: block; margin: 20px auto; max-width: 100%; max-height: 200px; border-radius: 6px; }
+            #result { margin-top: 20px; text-align: center; font-size: 1.2em; }
+            .btn { display: block; width: 100%; padding: 10px; background: #007bff; color: #fff; border: none; border-radius: 4px; font-size: 1em; cursor: pointer; }
+            .btn:disabled { background: #aaa; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Animal-10 Classifier</h2>
+            <input type="file" id="fileInput" accept="image/*"><br>
+            <img id="preview" src="#" alt="Image preview..." style="display:none;">
+            <button class="btn" id="uploadBtn" disabled>Upload & Classify</button>
+            <div id="result"></div>
+        </div>
+        <script>
+            const fileInput = document.getElementById('fileInput');
+            const preview = document.getElementById('preview');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const resultDiv = document.getElementById('result');
+            let selectedFile = null;
+
+            fileInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    selectedFile = file;
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        preview.src = e.target.result;
+                        preview.style.display = 'block';
+                    }
+                    reader.readAsDataURL(file);
+                    uploadBtn.disabled = false;
+                    resultDiv.textContent = '';
+                } else {
+                    preview.style.display = 'none';
+                    uploadBtn.disabled = true;
+                }
+            });
+
+            uploadBtn.addEventListener('click', function() {
+                if (!selectedFile) return;
+                uploadBtn.disabled = true;
+                resultDiv.textContent = 'Classifying...';
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+
+                fetch('/upload_file/', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    resultDiv.textContent = data;
+                })
+                .catch(error => {
+                    resultDiv.textContent = 'Error: ' + error;
+                })
+                .finally(() => {
+                    uploadBtn.disabled = false;
+                });
+            });
+        </script>
+    </body>
+    </html>
+    """
+    return content
+
 
 def predict_via_rest(encoded_image,
                      server_url: str = "http://0.0.0.0:8000/invocations"
